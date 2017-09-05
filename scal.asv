@@ -1,0 +1,18 @@
+% Scopo: Determina la scala massima raggiungibile con una decomposizione wavelet
+% diadica
+% 
+% Variabili IN: lena= immagine originale
+% 
+% Variabili OUT: scala=la max scala raggiungibile
+
+function [scala,imax]=scal(lena,l1,l2)
+
+lm=max(l1,l2);
+
+i=1;
+while(rem(lm2^i))
+    i=i+1;
+end
+
+imax=i;
+scala=imax-2;

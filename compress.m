@@ -1,0 +1,102 @@
+% Funzione: Comprime un immagine senza perdita di informazioni, attraverso
+% il salvataggio della stessa come matrice sparsa dopo la decomposizione
+% wavelet diadica completa. (la speranza è che dopo la decomposizione l'immagine costituisca una matrice sparsa
+% abbastanza da rendere conveniente in termini di storage la compressione)
+%
+% è possibile una compressione lossy che utilizza
+% come criterio la sogliatura dei coefficienti; la soglia che permette la
+% massima conservazione dell'energia compatibilmente al massimo numero di
+% coefficienti scartati viene scelta.
+%
+% Altra idea: riquantizzazione dei coefficienti, di modo che il salvataggio
+% come matrice sparsa occupi rilevantemente meno spazio (salva solo gli indici)
+% 
+% IN: resh= decomposizione wavelet già ordinata alla Matlab
+%
+% OUT: resh1= immagine compressa con tecnica lossy
+%      resh2= immagine compressa con tecnica lossless
+%
+
+
+
+function [resh1,resh2]=compress(resh)
+
+
+%calcolo energia dell'immagine e del numero di coefficienti a zero iniziale
+
+n0=sum(sum(resh==0)); %numero di coefficienti nulli della decomposizione così com'è
+energy=sum(sum(resh.^2)); %energia della decomposizione 
+
+%Agisco sui coefficienti con un hard thresholding creo un grafico che aiuti
+%nella scelta della soglia ottima, definita come quella che permette di
+%conservare la massima energia con il massimo numero di coefficienti a
+%zero, ovvero dove si incrociano le 2 curve
+
+sog=10; %soglia
+passo=1e-2; %passo di avanzamento della soglia
+resh1=zeros(size(resh)); %creo una matrice di appoggio
+pip=0;
+s(1)=0; %soglia iniziale
+j=1;
+while(s(j)<=sog)
+pip=0;    
+for i=1:size(resh,1)
+    for k=1:size(resh,2)
+        if(resh(i,k)<s(j))
+            resh1(i,k)=0;
+            pip=pip+1;
+        else
+            resh1(i,k)=resh(i,k);
+        end
+    end
+end
+ncoeff(j)=pip; %numero di coefficienti che taglio via con soglia s(j)
+en(j)=sum(sum(resh1.^2))/energy; %energia con soglia s(i)
+if(s(j)==sog)
+    break;
+end
+j=j+1;
+s(j)=s(j-1)+passo;
+end
+s=s(1:end-1);
+
+%normalizzazione per confrontare i grafici
+c=max(ncoeff./n0)/max(en);
+
+%plotting grafici di energia e numero di coefficienti scartati in funzione
+%della soglia
+figure,plot(s,en,'b'), title('Energia delle img sogliate, normalizzate all''energia dell''img originale')
+figure,plot(s,ncoeff./n0,'r'),title('Num. coeff. funzione della soglia normalizzati a n0')
+
+%Definisco che l'energia che voglio conservare è il 99,9 percento di quella
+%dell'immagine originale
+
+ench=max(en)*100;   % domanda: perchè senza eliminare nulla le 2 immagini non hanno la stessa energia? Dovrebbe essere dovuto
+                    %al tipo di wavelet, molto semplice con la quale ho
+                    %fatto DWT2
+
+%soglia ottima
+for i=1:length(s)
+    if(abs(en(i)*100-ench)<=1e-4)
+        soglia=s(i);
+        ncoel=ncoeff(i);
+    end
+end
+
+disp('Energia conservata al: '), ench
+disp('Numero di coefficienti scartati: '), ncoel
+
+%creo immagine sogliata ottimamente
+soglia=0;
+for i=1:size(resh,1)
+    for k=1:size(resh,2)
+        if(resh(i,k)<=soglia)
+            resh1(i,k)=0;
+        else
+            resh1(i,k)=resh(i,k);
+        end
+    end
+end
+
+resh1=sparse(resh1); %lossy
+resh2=sparse(resh); %lossless
